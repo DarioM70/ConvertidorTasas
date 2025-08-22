@@ -133,69 +133,71 @@
     <header>
       <h2>Convertidor de Intereses</h2>
     </header>
+
     <form class="converter-form" method="post">
-      
       <div>
         <label for="valor">Tasa a convertir (%)</label>
-        <input type="number" step="0.01" id="valor" min="0" name="valor" required placeholder="Ej: 12.5" />
+        <input type="number" step="0.01" id="valor" min="0" name="valor" required
+               value="{{ form_vals.valor }}" placeholder="Ej: 12.5" />
       </div>
 
-
+      <!-- ORIGEN -->
       <div>
         <label for="origen_tipo">Tipo de tasa original</label>
         <select name="origen_tipo" id="origen_tipo" required>
-          <option value="" disabled selected>Selecciona tipo</option>
-          <option value="nominal">Nominal</option>
-          <option value="efectiva">Efectiva</option>
+          <option value="" disabled {% if not form_vals.origen_tipo %}selected{% endif %}>Selecciona tipo</option>
+          <option value="nominal" {% if form_vals.origen_tipo=='nominal' %}selected{% endif %}>Nominal (anual convertible n)</option>
+          <option value="efectiva" {% if form_vals.origen_tipo=='efectiva' %}selected{% endif %}>Efectiva por período</option>
+          <option value="efectiva_anual" {% if form_vals.origen_tipo=='efectiva_anual' %}selected{% endif %}>Efectiva anual (TEA)</option>
         </select>
       </div>
 
       <div>
         <label for="origen_periodo">Periodo original</label>
         <select name="origen_periodo" id="origen_periodo" required>
-          <option value="" disabled selected>Selecciona periodo</option>
-          <option value="diaria">Diaria</option>
-          <option value="quincenal">Quincenal</option>
-          <option value="bimestral">Bimestral</option>
-          <option value="mensual">Mensual</option>
-          <option value="trimestral">Trimestral</option>
-          <option value="cuatrimestral">Cuatrimestral</option>
-          <option value="semestral">Semestral</option>
-          <option value="anual">Anual</option>
+          <option value="" disabled {% if not form_vals.origen_periodo %}selected{% endif %}>Selecciona periodo</option>
+          {% for p in periodos %}
+            <option value="{{ p }}" {% if form_vals.origen_periodo==p %}selected{% endif %}>{{ p|capitalize }}</option>
+          {% endfor %}
         </select>
       </div>
 
+      <div>
+        <label for="tipo_tiempo_origen">Timing de la tasa original</label>
+        <select name="tipo_tiempo_origen" id="tipo_tiempo_origen" required>
+          <option value="" disabled {% if not form_vals.tipo_tiempo_origen %}selected{% endif %}>¿Anticipada o vencida?</option>
+          <option value="vencida" {% if form_vals.tipo_tiempo_origen=='vencida' %}selected{% endif %}>Vencida</option>
+          <option value="anticipada" {% if form_vals.tipo_tiempo_origen=='anticipada' %}selected{% endif %}>Anticipada</option>
+        </select>
+      </div>
 
+      <!-- DESTINO -->
       <div>
         <label for="destino_tipo">Tipo de tasa destino</label>
         <select name="destino_tipo" id="destino_tipo" required>
-          <option value="" disabled selected>Selecciona tipo</option>
-          <option value="nominal">Nominal</option>
-          <option value="efectiva">Efectiva</option>
+          <option value="" disabled {% if not form_vals.destino_tipo %}selected{% endif %}>Selecciona tipo</option>
+          <option value="nominal" {% if form_vals.destino_tipo=='nominal' %}selected{% endif %}>Nominal (anual convertible n)</option>
+          <option value="efectiva" {% if form_vals.destino_tipo=='efectiva' %}selected{% endif %}>Periódica</option>
+          <option value="efectiva_anual" {% if form_vals.destino_tipo=='efectiva_anual' %}selected{% endif %}>Efectiva anual (TEA)</option>
         </select>
       </div>
 
       <div>
         <label for="destino_periodo">Periodo destino</label>
         <select name="destino_periodo" id="destino_periodo" required>
-          <option value="" disabled selected>Selecciona periodo</option>
-          <option value="diaria">Diaria</option>
-          <option value="quincenal">Quincenal</option>
-          <option value="bimestral">Bimestral</option>
-          <option value="mensual">Mensual</option>
-          <option value="trimestral">Trimestral</option>
-          <option value="cuatrimestral">Cuatrimestral</option>
-          <option value="semestral">Semestral</option>
-          <option value="anual">Anual</option>
+          <option value="" disabled {% if not form_vals.destino_periodo %}selected{% endif %}>Selecciona periodo</option>
+          {% for p in periodos %}
+            <option value="{{ p }}" {% if form_vals.destino_periodo==p %}selected{% endif %}>{{ p|capitalize }}</option>
+          {% endfor %}
         </select>
       </div>
 
       <div>
-        <label for="tipo_tiempo">Tipo de tasa</label>
-        <select name="tipo_tiempo" id="tipo_tiempo" required>
-          <option value="" disabled selected>¿Anticipada o vencida?</option>
-          <option value="vencida">Vencida</option>
-          <option value="anticipada">Anticipada</option>
+        <label for="tipo_tiempo_destino">Timing de la tasa destino</label>
+        <select name="tipo_tiempo_destino" id="tipo_tiempo_destino" required>
+          <option value="" disabled {% if not form_vals.tipo_tiempo_destino %}selected{% endif %}>¿Anticipada o vencida?</option>
+          <option value="vencida" {% if form_vals.tipo_tiempo_destino=='vencida' %}selected{% endif %}>Vencida</option>
+          <option value="anticipada" {% if form_vals.tipo_tiempo_destino=='anticipada' %}selected{% endif %}>Anticipada</option>
         </select>
       </div>
 
@@ -205,14 +207,38 @@
     <article class="feedback">
       {% if resultado is not none %}
         <div class="resultado">
-          Resultado: {{ resultado | round(4) }}%
+          Resultado {{ etiqueta }}: {{ "%.6f"|format(resultado) }}%
         </div>
       {% endif %}
-
       {% if error %}
         <div class="error">{{ error }}</div>
       {% endif %}
     </article>
   </section>
+
+  <script>
+    const origenTipo = document.getElementById('origen_tipo');
+    const origenTiming = document.getElementById('tipo_tiempo_origen');
+    const destinoTipo = document.getElementById('destino_tipo');
+    const destinoTiming = document.getElementById('tipo_tiempo_destino');
+
+    function lockTimingIfEffective(selectTipo, selectTiming) {
+      const t = selectTipo.value;
+      const isEff = (t === 'efectiva' || t === 'efectiva_anual');
+      [...selectTiming.options].forEach(o => {
+        if (o.value === 'anticipada') o.disabled = isEff;
+      });
+      if (isEff) selectTiming.value = 'vencida';
+    }
+
+    function syncAll() {
+      lockTimingIfEffective(origenTipo, origenTiming);
+      lockTimingIfEffective(destinoTipo, destinoTiming);
+    }
+
+    origenTipo.addEventListener('change', syncAll);
+    destinoTipo.addEventListener('change', syncAll);
+    document.addEventListener('DOMContentLoaded', syncAll);
+  </script>
 </body>
 </html>
